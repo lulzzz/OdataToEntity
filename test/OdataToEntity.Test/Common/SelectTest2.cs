@@ -24,7 +24,7 @@ namespace OdataToEntity.Test
                     i.Order.Customer.Name == "Sasha").Select(i => i.Id).ToList();
 
             Db.OeDataAdapter dataAdapter = Fixture.EdmModel.GetDataAdapter(Fixture.EdmModel.EntityContainer);
-            String request = $"Orders/{dataAdapter.DataContextType.Namespace}.BoundFunctionCollection(customerNames=['Natasha','Ivan','Sasha'])";
+            String request = $"Orders/{dataAdapter.DataContextType.Namespace}.BoundFunctionCollection(customerNames=['Natasha','Ivan','Sasha'])?$select=Id";
 
             ODataUri odataUri = Fixture.ParseUri(request);
             IEdmModel edmModel = Fixture.EdmModel.GetEdmModel(odataUri.Path);

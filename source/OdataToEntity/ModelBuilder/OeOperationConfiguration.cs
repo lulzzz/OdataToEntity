@@ -1,5 +1,4 @@
-﻿using Microsoft.OData.Edm;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 
@@ -27,21 +26,16 @@ namespace OdataToEntity.ModelBuilder
             ParameterInfo[] parameterInfos = methodInfo.GetParameters();
             var parameters = new List<OeOperationParameterConfiguration>(parameterInfos.Length);
             for (int i = 0; i < parameterInfos.Length; i++)
-                if (i == 0 && parameterInfos[0].ParameterType == typeof(IEdmModel))
+                if (i == 0 && parameterInfos[0].ParameterType.IsGenericType && parameterInfos[0].ParameterType.GetGenericTypeDefinition() == typeof(Db.OeBoundFunctionParameter<,>))
                 {
-                    bool isCollection;
-                    Type entityType = parameterInfos[1].ParameterType;
-                    if (isCollection = entityType.IsGenericType && entityType.GetGenericTypeDefinition() == typeof(IAsyncEnumerator<>))
-                        entityType = entityType.GetGenericArguments()[0];
-
+                    bool isCollection = true;
+                    Type entityType = parameterInfos[0].ParameterType.GetGenericArguments()[0];
                     if (!Parsers.OeExpressionHelper.IsEntityType(entityType))
                         throw new InvalidOperationException("Second parameter in function " + methodInfo.Name + " must be entity or IAsyncEnumerable<entity>");
 
                     isBound = true;
                     Type parameterType = isCollection ? typeof(IEnumerable<>).MakeGenericType(entityType) : entityType;
                     parameters.Add(new OeOperationParameterConfiguration(parameterInfos[i].Name, parameterType));
-
-                    i = 1;
                 }
                 else
                     parameters.Add(new OeOperationParameterConfiguration(parameterInfos[i].Name, parameterInfos[i].ParameterType));

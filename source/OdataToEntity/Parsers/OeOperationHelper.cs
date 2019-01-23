@@ -5,11 +5,41 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
 
 namespace OdataToEntity.Parsers
 {
     public static class OeOperationHelper
     {
+        public static Db.OeBoundFunctionParameter CreateBoundFunctionParameter(OeQueryContext queryContext)
+        {
+            var expressionBuilder = new OeExpressionBuilder(queryContext.JoinBuilder);
+
+            Type sourceEntityType = queryContext.EntitySetAdapter.EntityType;
+            IEdmEntitySet sourceEntitySet = OeEdmClrHelper.GetEntitySet(queryContext.EdmModel, queryContext.EntitySetAdapter.EntitySetName);
+            Expression source = OeEnumerableStub.CreateEnumerableStubExpression(sourceEntityType, sourceEntitySet);
+            source = expressionBuilder.ApplyNavigation(source, queryContext.ParseNavigationSegments);
+
+            IEdmEntitySet targetEntitySet = OeOperationHelper.GetEntitySet(queryContext.ODataUri.Path);
+            if (sourceEntitySet != targetEntitySet)
+                queryContext.ODataUri.Path = new ODataPath(new EntitySetSegment(targetEntitySet));
+
+            expressionBuilder = new OeExpressionBuilder(queryContext.JoinBuilder);
+            Type targetEntityType = queryContext.EdmModel.GetClrType(targetEntitySet.EntityType());
+            Expression target = OeEnumerableStub.CreateEnumerableStubExpression(targetEntityType, targetEntitySet);
+            target = expressionBuilder.ApplySelect(target, queryContext);
+
+            var sourceQueryExpression = new OeQueryExpression(queryContext.EdmModel, sourceEntitySet, source);
+            var targetQueryExpression = new OeQueryExpression(queryContext.EdmModel, targetEntitySet, target)
+            {
+                EntryFactory = expressionBuilder.CreateEntryFactory(targetEntitySet)
+            };
+
+            Type boundFunctionParameterType = typeof(Db.OeBoundFunctionParameter<,>).MakeGenericType(new[] { sourceEntityType, targetEntityType });
+            ConstructorInfo ctor = boundFunctionParameterType.GetConstructor(new[] { typeof(OeQueryExpression), typeof(OeQueryExpression) });
+            return (Db.OeBoundFunctionParameter)ctor.Invoke(new Object[] { sourceQueryExpression, targetQueryExpression });
+        }
         private static void FillParameters(IEdmModel edmModel, List<KeyValuePair<String, Object>> parameters, Stream requestStream, IEdmOperation operation, String contentType)
         {
             if (!operation.Parameters.Any())

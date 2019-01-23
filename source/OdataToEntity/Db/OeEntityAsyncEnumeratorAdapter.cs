@@ -54,10 +54,19 @@ namespace OdataToEntity.Db
         private readonly OeQueryContext _queryContext;
 
         public OeEntityAsyncEnumeratorAdapter(OeAsyncEnumerator asyncEnumerator, OeQueryContext queryContext)
+            : this(asyncEnumerator, queryContext.EntryFactory, queryContext)
+        {
+        }
+        public OeEntityAsyncEnumeratorAdapter(OeAsyncEnumerator asyncEnumerator, OeEntryFactory entryFactory)
+            : this(asyncEnumerator, entryFactory, null)
+        {
+
+        }
+        private OeEntityAsyncEnumeratorAdapter(OeAsyncEnumerator asyncEnumerator, OeEntryFactory entryFactory, OeQueryContext queryContext)
             : base(asyncEnumerator.CancellationToken)
         {
             _asyncEnumerator = asyncEnumerator;
-            _dbEnumerator = new OeDbEnumerator(asyncEnumerator, queryContext.EntryFactory);
+            _dbEnumerator = new OeDbEnumerator(asyncEnumerator, entryFactory);
             _queryContext = queryContext;
             _isFirstMoveNext = true;
             base.Count = asyncEnumerator.Count;
@@ -139,7 +148,7 @@ namespace OdataToEntity.Db
             Object buffer = _dbEnumerator.ClearBuffer();
 
             _isMoveNext = await _dbEnumerator.MoveNextAsync().ConfigureAwait(false);
-            if (!_isMoveNext && _queryContext.SkipTokenNameValues != null && _queryContext.SkipTokenAccessors != null)
+            if (!_isMoveNext && _queryContext != null && _queryContext.SkipTokenNameValues != null && _queryContext.SkipTokenAccessors != null)
                 SetOrderByProperties(_queryContext, entity, buffer);
 
             _current = entity;
