@@ -24,33 +24,6 @@ namespace OdataToEntity.Db
             _dataContextType = dataContextType;
         }
 
-        public OeAsyncEnumerator ApplyBoundFunction(OeQueryContext queryContext, out OeEntryFactory entryFactory)
-        {
-            if (queryContext.ODataUri.Path.LastSegment is OperationSegment operationSegment)
-            {
-                var edmFunction = (IEdmFunction)operationSegment.Operations.First();
-                MethodInfo methodInfo = queryContext.EdmModel.GetMethodInfo(edmFunction);
-
-                IReadOnlyList<KeyValuePair<String, Object>> parameterList = OeOperationHelper.GetParameters(
-                    queryContext.EdmModel, operationSegment, queryContext.ODataUri.ParameterAliasNodes);
-
-                OeBoundFunctionParameter boundFunctionParameter = OeOperationHelper.CreateBoundFunctionParameter(queryContext);
-                entryFactory = boundFunctionParameter.CreateEntryFactory();
-
-                var parameters = new Object[parameterList.Count + 1];
-                parameters[0] = boundFunctionParameter;
-                for (int i = 1; i < parameters.Length; i++)
-                    parameters[i] = parameterList[i - 1].Value;
-
-                Object result = methodInfo.Invoke(null, parameters);
-                if (result is IEnumerable enumerable)
-                    return new OeAsyncEnumeratorAdapter(enumerable, CancellationToken.None);
-                else
-                    return new OeScalarAsyncEnumeratorAdapter(Task.FromResult(result), CancellationToken.None);
-            }
-
-            throw new InvalidOperationException("Path last segment not OperationSegment");
-        }
         public virtual OeAsyncEnumerator ExecuteFunctionNonQuery(Object dataContext, String operationName, IReadOnlyList<KeyValuePair<String, Object>> parameters)
         {
             String sql = GetSql(dataContext, parameters);
@@ -129,9 +102,8 @@ namespace OdataToEntity.Db
 
             return _operations;
         }
-        protected virtual OeOperationConfiguration GetOperationConfiguration(MethodInfo methodInfo)
+        protected virtual IReadOnlyList<OeOperationConfiguration> GetOperationConfigurations(MethodInfo methodInfo)
         {
-            String name;
             var description = (DescriptionAttribute)methodInfo.GetCustomAttribute(typeof(DescriptionAttribute));
             if (description == null)
             {
@@ -139,12 +111,15 @@ namespace OdataToEntity.Db
                 if (boundFunction == null)
                     return null;
 
-                name = boundFunction.CollectionFunctionName;
+                var operations = new List<OeOperationConfiguration>(2);
+                if (boundFunction.CollectionFunctionName != null)
+                    operations.Add(new OeOperationConfiguration(boundFunction.CollectionFunctionName, methodInfo, true, true));
+                if (boundFunction.SingleFunctionName != null)
+                    operations.Add(new OeOperationConfiguration(boundFunction.SingleFunctionName, methodInfo, true, false));
+                return operations;
             }
-            else
-                name = description.Description;
 
-            return new OeOperationConfiguration(name, methodInfo, null);
+            return new[] { new OeOperationConfiguration(description.Description, methodInfo, null) };
         }
         protected virtual IReadOnlyList<OeOperationConfiguration> GetOperationsCore(Type dataContextType)
         {
@@ -152,9 +127,9 @@ namespace OdataToEntity.Db
             var operations = new List<OeOperationConfiguration>(methodInfos.Count);
             for (int i = 0; i < methodInfos.Count; i++)
             {
-                OeOperationConfiguration operationConfiguration = GetOperationConfiguration(methodInfos[i]);
+                IReadOnlyList<OeOperationConfiguration> operationConfiguration = GetOperationConfigurations(methodInfos[i]);
                 if (operationConfiguration != null)
-                    operations.Add(operationConfiguration);
+                    operations.AddRange(operationConfiguration);
             }
             return operations;
         }

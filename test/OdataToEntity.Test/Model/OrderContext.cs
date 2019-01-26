@@ -24,16 +24,16 @@ namespace OdataToEntity.Test.Model
         }
 
         [Db.OeBoundFunction(CollectionFunctionName = "BoundFunctionCollection", SingleFunctionName = "BoundFunctionSingle")]
-        public static IEnumerable<OrderItem> BoundFunctionCollection(Db.OeBoundFunctionParameter<Order, OrderItem> boundParameter, IEnumerable<String> customerNames)
+        public static IEnumerable<Order> BoundFunction(Db.OeBoundFunctionParameter<Customer, Order> boundParameter, IEnumerable<String> orderNames)
         {
             using (var orderContext = new OrderContext(OrderContextOptions.Create(true, null)))
             {
-                IQueryable<Order> orders = boundParameter.ApplyFilter(orderContext.Orders, orderContext);
-                IQueryable<OrderItem> orderItems = orders.Where(o => customerNames.Contains(o.Customer.Name)).SelectMany(o => o.Items);
+                IQueryable<Customer> customers = boundParameter.ApplyFilter(orderContext.Customers, orderContext);
+                IQueryable<Order> orders = customers.SelectMany(c => c.Orders).Where(o => orderNames.Contains(o.Name));
 
-                IQueryable result = boundParameter.ApplySelect(orderItems, orderContext);
-                List<OrderItem> orderItemList = boundParameter.Materialize(result).ToList().GetAwaiter().GetResult();
-                return orderItemList;
+                IQueryable result = boundParameter.ApplySelect(orders, orderContext);
+                List<Order> orderList = boundParameter.Materialize(result).ToList().GetAwaiter().GetResult();
+                return orderList;
             }
         }
         public static String GenerateDatabaseName() => Guid.NewGuid().ToString();

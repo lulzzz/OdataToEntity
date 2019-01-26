@@ -27,7 +27,7 @@ namespace OdataToEntity.Db
         }
         public OeEntryFactory CreateEntryFactory()
         {
-            return _result.CreateEntryFactory();
+            return _result.EntryFactory.CreateEntryFactoryFromTuple();
         }
 
         public OeEntryFactory EntryFactory => _result.EntryFactory;

@@ -2,16 +2,46 @@
 using Microsoft.OData.Edm;
 using Microsoft.OData.UriParser;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace OdataToEntity.Parsers
 {
     public static class OeOperationHelper
     {
+        public static Db.OeAsyncEnumerator ApplyBoundFunction(OeQueryContext queryContext)
+        {
+            if (queryContext.ODataUri.Path.LastSegment is OperationSegment operationSegment)
+            {
+                var edmFunction = (IEdmFunction)operationSegment.Operations.First();
+                MethodInfo methodInfo = queryContext.EdmModel.GetMethodInfo(edmFunction);
+
+                IReadOnlyList<KeyValuePair<String, Object>> parameterList = OeOperationHelper.GetParameters(
+                    queryContext.EdmModel, operationSegment, queryContext.ODataUri.ParameterAliasNodes);
+
+                Db.OeBoundFunctionParameter boundFunctionParameter = OeOperationHelper.CreateBoundFunctionParameter(queryContext);
+
+                var parameters = new Object[parameterList.Count + 1];
+                parameters[0] = boundFunctionParameter;
+                for (int i = 1; i < parameters.Length; i++)
+                    parameters[i] = parameterList[i - 1].Value;
+
+                Object result = methodInfo.Invoke(null, parameters);
+                queryContext.EntryFactory = boundFunctionParameter.CreateEntryFactory();
+                if (result is IEnumerable enumerable)
+                    return new Db.OeAsyncEnumeratorAdapter(enumerable, CancellationToken.None);
+
+                return new Db.OeScalarAsyncEnumeratorAdapter(Task.FromResult(result), CancellationToken.None);
+            }
+
+            throw new InvalidOperationException("Path last segment not OperationSegment");
+        }
         public static Db.OeBoundFunctionParameter CreateBoundFunctionParameter(OeQueryContext queryContext)
         {
             var expressionBuilder = new OeExpressionBuilder(queryContext.JoinBuilder);

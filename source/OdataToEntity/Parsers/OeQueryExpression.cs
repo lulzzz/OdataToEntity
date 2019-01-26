@@ -15,7 +15,7 @@ namespace OdataToEntity.Parsers
         {
             EdmModel = edmModel;
             _entitySet = entitySet;
-            _expression = expression;
+            _expression = new OeEnumerableToQuerableVisitor().Visit(expression);
         }
 
         public IQueryable ApplyTo(IQueryable source, Object dataContext)
@@ -30,23 +30,6 @@ namespace OdataToEntity.Parsers
         public IQueryable<T> ApplyTo<T>(IQueryable<T> source, Object dataContext)
         {
             return (IQueryable<T>)ApplyTo((IQueryable)source, dataContext);
-        }
-        public OeEntryFactory CreateEntryFactory()
-        {
-            if (_expression != null && OeExpressionHelper.IsTupleType(OeExpressionHelper.GetCollectionItemType(_expression.Type)))
-            {
-                Db.OeDataAdapter dataAdapter = EdmModel.GetDataAdapter(_entitySet.Container);
-                Type clrType = dataAdapter.EntitySetAdapters.Find(_entitySet).EntityType;
-
-                OePropertyAccessor[] propertyAccessors = OePropertyAccessor.CreateFromType(clrType, EntryFactory.EntitySet);
-                OePropertyAccessor[] accessors = new OePropertyAccessor[EntryFactory.Accessors.Length];
-                for (int i = 0; i < accessors.Length; i++)
-                    accessors[i] = Array.Find(propertyAccessors, pa => pa.EdmProperty == EntryFactory.Accessors[i].EdmProperty);
-
-                return OeEntryFactory.CreateEntryFactory(_entitySet, accessors);
-            }
-
-            return EntryFactory;
         }
         public IQueryable GetQuerySource(Object dataContext)
         {

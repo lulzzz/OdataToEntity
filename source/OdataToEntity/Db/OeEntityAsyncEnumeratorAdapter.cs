@@ -72,7 +72,7 @@ namespace OdataToEntity.Db
             base.Count = asyncEnumerator.Count;
         }
 
-        private static async Task<Object> CreateEntity(OeDbEnumerator dbEnumerator, Object value, Object entity, Type entityType)
+        private static async Task<Object> CreateEntity(IOeDbEnumerator dbEnumerator, Object value, Object entity, Type entityType)
         {
             if (OeExpressionHelper.IsTupleType(entity.GetType()))
             {
@@ -96,7 +96,7 @@ namespace OdataToEntity.Db
             }
             return entity;
         }
-        private static async Task<Object> CreateNestedEntity(OeDbEnumerator dbEnumerator, Object value, Type nestedEntityType)
+        private static async Task<Object> CreateNestedEntity(IOeDbEnumerator dbEnumerator, Object value, Type nestedEntityType)
         {
             Object entity = dbEnumerator.Current;
             if (entity == null)
@@ -154,7 +154,7 @@ namespace OdataToEntity.Db
             _current = entity;
             return true;
         }
-        private static async Task SetNavigationProperty(OeDbEnumerator dbEnumerator, Object value, Object entity)
+        private static async Task SetNavigationProperty(IOeDbEnumerator dbEnumerator, Object value, Object entity)
         {
             PropertyInfo propertyInfo = entity.GetType().GetProperty(dbEnumerator.EntryFactory.ResourceInfo.Name);
             Type nestedEntityType = OeExpressionHelper.GetCollectionItemType(propertyInfo.PropertyType);

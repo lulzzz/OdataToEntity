@@ -65,7 +65,7 @@ namespace OdataToEntity.Parsers
                     if (_queryableSource != null)
                     {
                         query = _queryableSource(enumerableStub.EntitySet);
-                        if (query.Expression is MethodCallExpression)
+                        if (query != null && query.Expression is MethodCallExpression)
                             return query.Expression;
                     }
 
@@ -125,16 +125,7 @@ namespace OdataToEntity.Parsers
         }
         private OeEntryFactory CreateEntryFactory(OeExpressionBuilder expressionBuilder)
         {
-            IEdmEntitySet entitySet;
-            if (ODataUri.Path.LastSegment is OperationSegment)
-            {
-                entitySet = OeOperationHelper.GetEntitySet(ODataUri.Path);
-                Type clrEntityType = EdmModel.GetClrType(entitySet.EntityType());
-                OePropertyAccessor[] accessors = OePropertyAccessor.CreateFromType(clrEntityType, entitySet);
-                return OeEntryFactory.CreateEntryFactory(entitySet, accessors);
-            }
-
-            entitySet = OeParseNavigationSegment.GetEntitySet(ParseNavigationSegments);
+            IEdmEntitySet entitySet = OeParseNavigationSegment.GetEntitySet(ParseNavigationSegments);
             if (entitySet == null)
                 entitySet = OeEdmClrHelper.GetEntitySet(EdmModel, EntitySetAdapter.EntitySetName);
 
