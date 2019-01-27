@@ -1,4 +1,5 @@
-﻿using OdataToEntity.Parsers;
+﻿using Microsoft.OData.Edm;
+using OdataToEntity.Parsers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,6 +31,7 @@ namespace OdataToEntity.Db
             return _result.EntryFactory.CreateEntryFactoryFromTuple();
         }
 
+        protected IEdmModel EdmModel => _source.EdmModel;
         public OeEntryFactory EntryFactory => _result.EntryFactory;
     }
 
@@ -48,6 +50,16 @@ namespace OdataToEntity.Db
         public IQueryable ApplySelect(IQueryable<TResult> result, Object dataContext)
         {
             return base.ApplySelect(result, dataContext);
+        }
+        public void CloseDataContext<TDataContext>(TDataContext  dataContext)
+        {
+            OeDataAdapter dataAdapter = base.EdmModel.GetDataAdapter(typeof(TDataContext));
+            dataAdapter.CloseDataContext(dataContext);
+        }
+        public TDataContext CreateDataContext<TDataContext>()
+        {
+            OeDataAdapter dataAdapter = base.EdmModel.GetDataAdapter(typeof(TDataContext));
+            return (TDataContext)dataAdapter.CreateDataContext();
         }
         public IAsyncEnumerable<TResult> Materialize(IQueryable result, CancellationToken cancellationToken = default)
         {
